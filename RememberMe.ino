@@ -16,6 +16,7 @@ const int lightPinC = 11;
 const int buttonPinC = 12;
 const int lightPinD = 18;
 const int buttonPinD = 19;
+const int statusPin = 13;
 
 // TONES =====
 const int _B5 = 988;//
@@ -49,21 +50,32 @@ const int winNotesB[] = { _G4, _G4, _F4, _F4, _D4, _D3, _D4, _D3 };
 const int winBeats[] = {   1 ,  2 ,  1 ,  2 ,  1 ,  1 ,  1 ,  3  };
 const int winLength = 8;
 
-const int loseNotesA[] = { _G3 , _F3 , _D3 };
-const int loseNotesB[] = {  0  ,  0  ,  0  };
-const int loseBeats[] = {   2  ,  2  ,  4 };
-const int loseLength = 3;
+const int loseNotesA[] = { _G4 , _E4 , _C4 , _G4 , _E4 , _B4 , _G4 , _E4 , _C4 , _F3};
+const int loseNotesB[] = {  0  ,  0  , _A4 ,  0  ,  0  , _D4 ,  0  ,  0  , _A4 , _D3 };
+const int loseBeats[] = {   1  ,  1  ,  2  ,  1  ,  1  ,  2  ,  1  ,  1  ,  4  ,  8  };
+const int loseLength = 10;
 
 // OTHER CONSTANTS
 const int tempo = 250;
 const int maxPatternLength = 100;
+const int initTimer = 50;
 
 // VARIABLES
 int pattern[100];
 int currentProgression = 1;
 int playerInputProgression = 1;
 int gameState = 0;
-boolean wasButtonPushed = false;
+
+int timerA = initTimer;
+int timerB = initTimer;
+int timerC = initTimer;
+int timerD = initTimer;
+boolean buttonStateA = false;
+boolean buttonStateB = false;
+boolean buttonStateC = false;
+boolean buttonStateD = false;
+int trueButtonPressed = -1;
+boolean lastTrueState = false;
 
 // METHODS =====
 void setup() {
@@ -73,14 +85,21 @@ void setup() {
   pinMode(lightPinB, OUTPUT);
   pinMode(lightPinC, OUTPUT);
   pinMode(lightPinD, OUTPUT);
+  pinMode(statusPin, OUTPUT);
   pinMode(buttonPinA, INPUT);
   pinMode(buttonPinB, INPUT);
   pinMode(buttonPinC, INPUT);
   pinMode(buttonPinD, INPUT);
   
+  
   // Randomize pattern
   Serial.begin(9600);
   randomSeed(analogRead(0));
+  digitalWrite(statusPin, HIGH);
+  
+  // Startup music
+  //playMelody(startupNotesA, startupNotesB, startupBeats, startupLength, false, true);
+  playOldMelody();
 }
 
 void loop() {
@@ -93,8 +112,8 @@ void loop() {
       }
       currentProgression = 1;
       gameState = 1;
-      //playMelody(startupNotesA, startupNotesB, startupBeats, startupLength, false, true);
-      playOldMelody();
+      delay(500);
+      preludePattern();
       break;
     case 1: // Showing pattern
       delay(500);
@@ -103,59 +122,148 @@ void loop() {
       break;
     case 2: // Receiving player pattern
       playerInputProgression = 1;
-      Serial.println("Receiving input");
+      timerA = initTimer;
+      timerB = initTimer;
+      timerC = initTimer;
+      timerD = initTimer;
+      buttonStateA = false;
+      buttonStateB = false;
+      buttonStateC = false;
+      buttonStateD = false;
+      trueButtonPressed = -1;
+      lastTrueState = false;
+      
       while (playerInputProgression <= currentProgression) {
-        int buttonPushed = -1;
-        if (digitalRead(buttonPinA) == HIGH){
-          digitalWrite(lightPinA, HIGH);
-          buttonPushed = 0;
-        } else {
-          digitalWrite(lightPinA, LOW);
-        }
-        if (digitalRead(buttonPinB) == HIGH) {
-          digitalWrite(lightPinB, HIGH);
-          buttonPushed = 1;
-        } else {
-          digitalWrite(lightPinB, LOW);
-        }
-        if (digitalRead(buttonPinC) == HIGH) {
-          digitalWrite(lightPinC, HIGH);
-          buttonPushed = 2;
-        } else {
-          digitalWrite(lightPinC, LOW);
-        }
-        if (digitalRead(buttonPinD) == HIGH) {
-          digitalWrite(lightPinD, HIGH);
-          buttonPushed = 3;
-        } else {
-          digitalWrite(lightPinD, LOW);
+        
+        // Button A0
+        if (digitalRead(buttonPinA) == LOW) { // If currently pushed
+          digitalWrite(lightPinA, HIGH); // Light it up
+          if (buttonStateA) { // If was pushed, decrement timer
+            timerA--;
+          } else { // Otherwise reset the timer
+            timerA = initTimer;
+          }
+          buttonStateA = true; // Set last state to pushed
+          if (timerA <= 0) {
+            trueButtonPressed = 0;
+          }
+        } else { // If not pushed
+          digitalWrite(lightPinA, LOW); // Turn off its light
+          if (!buttonStateA) { // If wasn't pushed, decrement timer
+            timerA--;
+          } else { // Otherwise reset the timer
+            timerA = initTimer;
+          }
+          buttonStateA = false; // Set last state to unpushed
+          if (timerA <= 0 && trueButtonPressed == 0) { // If the timer has emptied and was the currently pushed button
+            trueButtonPressed = -1; // Unpush the button
+          }
         }
         
-        if (buttonPushed >= 0 && !wasButtonPushed) {
-          Serial.println("Pushed button");
-          Serial.println(buttonPushed);
-          if (buttonPushed != pattern[playerInputProgression]) {
+        // Button B1
+        if (digitalRead(buttonPinB) == LOW) { // If currently pushed
+          digitalWrite(lightPinB, HIGH); // Light it up
+          if (buttonStateB) { // If was pushed, decrement timer
+            timerB--;
+          } else { // Otherwise reset the timer
+            timerB = initTimer;
+          }
+          buttonStateB = true; // Set last state to pushed
+          if (timerB <= 0) {
+            trueButtonPressed = 1;
+          }
+        } else { // If not pushed
+          digitalWrite(lightPinB, LOW); // Turn off its light
+          if (!buttonStateB) { // If wasn't pushed, decrement timer
+            timerB--;
+          } else { // Otherwise reset the timer
+            timerB = initTimer;
+          }
+          buttonStateB = false; // Set last state to unpushed
+          if (timerB <= 0 && trueButtonPressed == 1) { // If the timer has emptied and was the currently pushed button
+            trueButtonPressed = -1; // Unpush the button
+          }
+        }
+        
+        // Button C2
+        if (digitalRead(buttonPinC) == LOW) { // If currently pushed
+          digitalWrite(lightPinC, HIGH); // Light it up
+          if (buttonStateC) { // If was pushed, decrement timer
+            timerC--;
+          } else { // Otherwise reset the timer
+            timerC = initTimer;
+          }
+          buttonStateC = true; // Set last state to pushed
+          if (timerC <= 0) {
+            trueButtonPressed = 2;
+          }
+        } else { // If not pushed
+          digitalWrite(lightPinC, LOW); // Turn off its light
+          if (!buttonStateC) { // If wasn't pushed, decrement timer
+            timerC--;
+          } else { // Otherwise reset the timer
+            timerC = initTimer;
+          }
+          buttonStateC = false; // Set last state to unpushed
+          if (timerC <= 0 && trueButtonPressed == 2) { // If the timer has emptied and was the currently pushed button
+            trueButtonPressed = -1; // Unpush the button
+          }
+        }
+        
+        // Button D3
+        if (digitalRead(buttonPinD) == LOW) { // If currently pushed
+          digitalWrite(lightPinD, HIGH); // Light it up
+          if (buttonStateD) { // If was pushed, decrement timer
+            timerD--;
+          } else { // Otherwise reset the timer
+            timerD = initTimer;
+          }
+          buttonStateD = true; // Set last state to pushed
+          if (timerD <= 0) {
+            trueButtonPressed = 3;
+          }
+        } else { // If not pushed
+          digitalWrite(lightPinD, LOW); // Turn off its light
+          if (!buttonStateD) { // If wasn't pushed, decrement timer
+            timerD--;
+          } else { // Otherwise reset the timer
+            timerD = initTimer;
+          }
+          buttonStateD = false; // Set last state to unpushed
+          if (timerD <= 0 && trueButtonPressed == 3) { // If the timer has emptied and was the currently pushed button
+            trueButtonPressed = -1; // Unpush the button
+          }
+        }
+        
+        // Check if right button
+        if (trueButtonPressed >= 0 && !lastTrueState) {
+          if (trueButtonPressed == pattern[playerInputProgression-1]) {
+            playerInputProgression++;
+          } else {
             gameState = 3;
             break;
           }
-          playerInputProgression++;
         }
         
-        if (buttonPushed < 0) {
-          wasButtonPushed = false;
+        if (trueButtonPressed < 0) {
+          lastTrueState = false;
         } else {
-          wasButtonPushed = true;
+          lastTrueState = true;
         }
         
-        delay(10);
+        //delay(10);
       }
-      Serial.println("Finished receiving input");
-      //currentProgression++;
-      //gameState = 1;
+      
+      if (gameState == 2) {
+        currentProgression++;
+        gameState = 1;
+        setRowLightState(false);
+      }
       break;
     case 3: // Player lost
       playMelody(loseNotesA, loseNotesB, loseBeats, loseLength, false, true);
       gameState = 0;
+      delay(500);
       break;
     case 4: // Player won
       playMelody(winNotesA, winNotesB, winBeats, winLength, false, true);
@@ -167,7 +275,7 @@ void loop() {
   }
 }
 
-void showPattern() {
+void preludePattern() {
   digitalWrite(lightPinA,HIGH);
   playSound(_A3, 0, 400, false);
   setRowLightState(false);
@@ -186,13 +294,16 @@ void showPattern() {
   setRowLightState(true);
   playSound(_B5, 0, 500, false);
   setRowLightState(false);
-  delay(1000);
-  
+}
+
+void showPattern() {
+  delay(500);
   for (int i = 0; i < currentProgression; i++) {
     setRowLightState(false);
     int showDelay = 500;
-    if (currentProgression > 5) showDelay = 250;
-    if (currentProgression > 10) showDelay = 150; 
+    if (currentProgression > 5) showDelay = 400;
+    if (currentProgression > 10) showDelay = 300;
+    if (currentProgression > 10) showDelay = 200;
     switch(pattern[i]) {
       case 0:
         digitalWrite(lightPinA,HIGH);
